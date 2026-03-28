@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Voices from the Pews – Rhode Island</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --cream: #faf8f4;
+    --stone: #e8e4dc;
+    --ink: #1a1814;
+    --muted: #7a7570;
+    --accent: #8b6f47;
+    --accent-light: #c4a882;
+    --white: #ffffff;
+    --shadow: 0 2px 20px rgba(26,24,20,0.08);
+    --shadow-lg: 0 8px 40px rgba(26,24,20,0.14);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--cream);
+    color: var(--ink);
+    height: 800px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  header {
+    background: var(--white);
+    border-bottom: 1px solid var(--stone);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .header-left h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+
+  .header-left p {
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-weight: 300;
+    margin-top: 2px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    position: relative;
+  }
+
+  .search-wrap svg {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+  }
+
+  input[type="text"] {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 12px 8px 34px;
+    border: 1px solid var(--stone);
+    border-radius: 6px;
+    background: var(--cream);
+    color: var(--ink);
+    width: 220px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus {
+    border-color: var(--accent-light);
+  }
+
+  input[type="text"]::placeholder { color: var(--muted); }
+
+  select {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 8px 32px 8px 12px;
+    border: 1px solid var(--stone);
+    border-radius: 6px;
+    background: var(--cream);
+    color: var(--ink);
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a7570' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  select:focus { border-color: var(--accent-light); }
+
+  .count-badge {
+    font-size: 0.78rem;
+    color: var(--muted);
+    white-space: nowrap;
+    font-weight: 300;
+  }
+
+  #map {
+    flex: 1;
+    width: 100%;
+  }
+
+  /* Leaflet popup overrides */
+  .leaflet-popup-content-wrapper {
+    border-radius: 10px;
+    box-shadow: var(--shadow-lg);
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--stone);
+    font-family: 'DM Sans', sans-serif;
+    min-width: 240px;
+  }
+
+  .leaflet-popup-content {
+    margin: 0;
+    width: auto !important;
+  }
+
+  .leaflet-popup-tip { background: var(--white); }
+  .leaflet-popup-close-button {
+    color: var(--muted) !important;
+    font-size: 18px !important;
+    top: 8px !important;
+    right: 10px !important;
+  }
+
+  .popup-inner {
+    padding: 20px 22px 18px;
+  }
+
+  .popup-denomination {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    font-weight: 500;
+    margin-bottom: 6px;
+  }
+
+  .popup-church {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+    margin-bottom: 4px;
+  }
+
+  .popup-pastor {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  .popup-pastor span {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .popup-city {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .popup-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--ink);
+    color: var(--white);
+    text-decoration: none;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 6px;
+    transition: background 0.2s;
+    letter-spacing: 0.01em;
+  }
+
+  .popup-link:hover { background: var(--accent); }
+
+  .popup-link-placeholder {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--stone);
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-style: italic;
+  }
+
+  /* Custom marker */
+  .church-marker {
+    width: 32px;
+    height: 32px;
+    background: var(--white);
+    border: 2px solid var(--accent);
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    transition: transform 0.15s, background 0.15s;
+    cursor: pointer;
+  }
+
+  .church-marker:hover,
+  .church-marker.active {
+    background: var(--accent);
+    transform: rotate(-45deg) scale(1.15);
+  }
+
+  .church-marker-inner {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(45deg);
+    font-size: 13px;
+  }
+
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>Voices from the Pews</h1>
+    <p>Rhode Island Pastor Podcast</p>
+  </div>
+  <div class="controls">
+    <div class="search-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search" placeholder="Search pastor or church…" />
+    </div>
+    <select id="filter-city">
+      <option value="">All Cities</option>
+    </select>
+    <select id="filter-denomination">
+      <option value="">All Denominations</option>
+    </select>
+    <span class="count-badge" id="count-badge"></span>
+  </div>
+</header>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ─── CHURCH DATA ───────────────────────────────────────────────────────────────
+// Replace this array with your real data. Each entry:
+//   name: church name
+//   pastor: pastor's full name
+//   city: city in RI
+//   denomination: denomination label
+//   lat/lng: coordinates
+//   episode: URL to podcast episode (or "" if not yet published)
+const churches = [
+  { name: "Grace Community Church", pastor: "Pastor James Whitfield", city: "Providence", denomination: "Baptist", lat: 41.8240, lng: -71.4128, episode: "https://yourpodcast.com/ep1" },
+  { name: "St. Michael's Episcopal", pastor: "Rev. Sarah Donovan", city: "Providence", denomination: "Episcopal", lat: 41.8210, lng: -71.4195, episode: "https://yourpodcast.com/ep2" },
+  { name: "Harvest Fellowship", pastor: "Pastor Marco Rivera", city: "Cranston", denomination: "Non-Denominational", lat: 41.7798, lng: -71.4373, episode: "https://yourpodcast.com/ep3" },
+  { name: "First Congregational Church", pastor: "Rev. Elaine Marsh", city: "Warwick", denomination: "Congregational", lat: 41.7001, lng: -71.4162, episode: "" },
+  { name: "Providence Reformed Church", pastor: "Pastor David Kim", city: "Providence", denomination: "Reformed", lat: 41.8350, lng: -71.4050, episode: "https://yourpodcast.com/ep5" },
+  { name: "New Life Assembly", pastor: "Pastor Tanya Brooks", city: "Pawtucket", denomination: "Pentecostal", lat: 41.8787, lng: -71.3828, episode: "https://yourpodcast.com/ep6" },
+  { name: "Trinity Lutheran Church", pastor: "Rev. Hans Johansson", city: "East Providence", denomination: "Lutheran", lat: 41.8140, lng: -71.3700, episode: "https://yourpodcast.com/ep7" },
+  { name: "Cornerstone Baptist", pastor: "Pastor Leroy Thompson", city: "Woonsocket", denomination: "Baptist", lat: 42.0015, lng: -71.5148, episode: "" },
+  { name: "St. Catherine of Siena", pastor: "Fr. Patrick O'Brien", city: "Cranston", denomination: "Catholic", lat: 41.7650, lng: -71.4550, episode: "https://yourpodcast.com/ep9" },
+  { name: "Lighthouse Church", pastor: "Pastor Anika Joseph", city: "Newport", denomination: "Non-Denominational", lat: 41.4901, lng: -71.3128, episode: "https://yourpodcast.com/ep10" },
+  { name: "First Baptist Church", pastor: "Rev. Thomas Gray", city: "Newport", denomination: "Baptist", lat: 41.4875, lng: -71.3075, episode: "https://yourpodcast.com/ep11" },
+  { name: "Vine & Branch Church", pastor: "Pastor Michelle Santos", city: "Bristol", denomination: "Non-Denominational", lat: 41.6773, lng: -71.2707, episode: "" },
+  { name: "Emmanuel United Methodist", pastor: "Rev. Carol Haynes", city: "Westerly", denomination: "Methodist", lat: 41.3776, lng: -71.8273, episode: "https://yourpodcast.com/ep13" },
+  { name: "CrossRoads Community", pastor: "Pastor Nathan Webb", city: "North Kingstown", denomination: "Non-Denominational", lat: 41.5637, lng: -71.4590, episode: "https://yourpodcast.com/ep14" },
+  { name: "Calvary Chapel RI", pastor: "Pastor Joel Pires", city: "Johnston", denomination: "Calvary Chapel", lat: 41.8290, lng: -71.5100, episode: "https://yourpodcast.com/ep15" },
+  { name: "Hope Presbyterian", pastor: "Rev. Linda Park", city: "Barrington", denomination: "Presbyterian", lat: 41.7401, lng: -71.3101, episode: "" },
+  { name: "The Well Church", pastor: "Pastor Ray Medeiros", city: "Fall River area / RI border", denomination: "Evangelical", lat: 41.7200, lng: -71.1550, episode: "https://yourpodcast.com/ep17" },
+  { name: "Broad Street Ministry", pastor: "Pastor Diane Cooper", city: "Providence", denomination: "Non-Denominational", lat: 41.8180, lng: -71.4250, episode: "https://yourpodcast.com/ep18" },
+  { name: "Shiloh Tabernacle", pastor: "Bishop Raymond Ford", city: "Providence", denomination: "Pentecostal", lat: 41.8300, lng: -71.4300, episode: "" },
+  { name: "Second Baptist Church", pastor: "Pastor Gloria Evans", city: "Pawtucket", denomination: "Baptist", lat: 41.8700, lng: -71.3900, episode: "https://yourpodcast.com/ep20" },
+];
+
+// ─── MAP SETUP ─────────────────────────────────────────────────────────────────
+const map = L.map('map', {
+  center: [41.65, -71.55],
+  zoom: 10,
+  minZoom: 9,
+  maxBounds: [[41.1, -72.0], [42.1, -71.0]],
+  maxBoundsViscosity: 1.0,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://openstreetmap.org">OpenStreetMap</a> © <a href="https://carto.com">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ─── FILTERS ───────────────────────────────────────────────────────────────────
+const cities = [...new Set(churches.map(c => c.city))].sort();
+const denominations = [...new Set(churches.map(c => c.denomination))].sort();
+
+const citySelect = document.getElementById('filter-city');
+const denomSelect = document.getElementById('filter-denomination');
+const searchInput = document.getElementById('search');
+const countBadge = document.getElementById('count-badge');
+
+cities.forEach(city => {
+  const opt = document.createElement('option');
+  opt.value = city; opt.textContent = city;
+  citySelect.appendChild(opt);
+});
+
+denominations.forEach(d => {
+  const opt = document.createElement('option');
+  opt.value = d; opt.textContent = d;
+  denomSelect.appendChild(opt);
+});
+
+// ─── MARKERS ───────────────────────────────────────────────────────────────────
+function createIcon() {
+  return L.divIcon({
+    className: '',
+    html: `<div class="church-marker"><div class="church-marker-inner">⛪</div></div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -36],
+  });
+}
+
+function buildPopup(c) {
+  const episodeBtn = c.episode
+    ? `<a class="popup-link" href="${c.episode}" target="_blank">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Listen to Episode
+      </a>`
+    : `<span class="popup-link-placeholder">Episode coming soon</span>`;
+
+  return `
+    <div class="popup-inner">
+      <div class="popup-denomination">${c.denomination}</div>
+      <div class="popup-church">${c.name}</div>
+      <div class="popup-pastor">with <span>${c.pastor}</span></div>
+      <div class="popup-city">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        ${c.city}, RI
+      </div>
+      ${episodeBtn}
+    </div>`;
+}
+
+let markers = [];
+
+churches.forEach(c => {
+  const marker = L.marker([c.lat, c.lng], { icon: createIcon() })
+    .bindPopup(buildPopup(c), { maxWidth: 280 });
+  marker.churchData = c;
+  marker.addTo(map);
+  markers.push(marker);
+});
+
+// ─── FILTER LOGIC ──────────────────────────────────────────────────────────────
+function applyFilters() {
+  const search = searchInput.value.toLowerCase().trim();
+  const city = citySelect.value;
+  const denom = denomSelect.value;
+  let visible = 0;
+
+  markers.forEach(m => {
+    const c = m.churchData;
+    const matchSearch = !search ||
+      c.name.toLowerCase().includes(search) ||
+      c.pastor.toLowerCase().includes(search);
+    const matchCity = !city || c.city === city;
+    const matchDenom = !denom || c.denomination === denom;
+
+    if (matchSearch && matchCity && matchDenom) {
+      m.addTo(map);
+      visible++;
+    } else {
+      m.remove();
+    }
+  });
+
+  countBadge.textContent = `${visible} church${visible !== 1 ? 'es' : ''}`;
+}
+
+searchInput.addEventListener('input', applyFilters);
+citySelect.addEventListener('change', applyFilters);
+denomSelect.addEventListener('change', applyFilters);
+
+applyFilters(); // init count
+</script>
+</body>
+</html>
