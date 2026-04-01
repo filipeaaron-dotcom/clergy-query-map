@@ -149,23 +149,34 @@
 
   .leaflet-popup-tip { background: var(--white); }
   .leaflet-popup-close-button {
-    color: var(--muted) !important;
+    color: var(--white) !important;
     font-size: 18px !important;
     top: 8px !important;
     right: 10px !important;
+    z-index: 10;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  .popup-photo {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    object-position: top center;
+    display: block;
+  }
+
+  .popup-photo-placeholder {
+    width: 100%;
+    height: 80px;
+    background: var(--stone);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
   }
 
   .popup-inner {
-    padding: 20px 22px 18px;
-  }
-
-  .popup-denomination {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    color: var(--accent);
-    font-weight: 500;
-    margin-bottom: 6px;
+    padding: 16px 22px 18px;
   }
 
   .popup-church {
@@ -180,7 +191,7 @@
   .popup-pastor {
     font-size: 0.82rem;
     color: var(--muted);
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .popup-pastor span {
@@ -255,8 +266,6 @@
     transform: rotate(45deg);
     font-size: 13px;
   }
-
-
 </style>
 </head>
 <body>
@@ -286,33 +295,38 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 // ─── CHURCH DATA ───────────────────────────────────────────────────────────────
-// Replace this array with your real data. Each entry:
+// Each entry:
 //   name: church name
 //   pastor: pastor's full name
 //   city: city in RI
-//   denomination: denomination label
+//   denomination: denomination label (used for filter dropdown only)
 //   lat/lng: coordinates
 //   episode: URL to podcast episode (or "" if not yet published)
+//   photo: URL to pastor photo (or "" for placeholder)
+//          To add photos:
+//          1. Create a "photos" folder in your GitHub repo
+//          2. Upload photo files there (e.g. tyler-brock.jpg)
+//          3. Set photo to: "https://filipeaaron-dotcom.github.io/clergy-query-map/photos/tyler-brock.jpg"
 const churches = [
-  { name: "Summit Baptist Church", pastor: "Tyler Brock", city: "Coventry", denomination: "Baptist", lat: 41.6957907, lng: -71.6929298, episode: "https://clergyquerypod.squarespace.com/episodes/tyler-brock-summit-baptist-church-coventry" },
-  { name: "First Baptist Church of East Greenwich", pastor: "Paul Rollins", city: "East Greenwich", denomination: "Baptist", lat: 41.6626094, lng: -71.4508835, episode: "https://clergyquerypod.squarespace.com/episodes/episode-1-podcast-w-aaron" },
-  { name: "Hope Church", pastor: "Rick Moore & Justin Duwiot", city: "Cranston", denomination: "Non-Denominational", lat: 41.7803028, lng: -71.5144357, episode: "https://clergyquerypod.squarespace.com/episodes/5ll0m8ts0b9aiv7ujpxdubtfllo17a" },
-  { name: "First Presbyterian Church", pastor: "Sean Bland", city: "Newport", denomination: "Presbyterian", lat: 41.4940519, lng: -71.3086333, episode: "https://clergyquerypod.squarespace.com/episodes/sean-bland-first-presbyterian-church-newport" },
-  { name: "House of Praise and Prayer Worship Center", pastor: "Denetra Platts", city: "Middletown", denomination: "Pentecostal", lat: 41.5140, lng: -71.2973, episode: "https://clergyquerypod.squarespace.com/episodes/denetra-platts-house-of-praise-and-prayer-worship-center-middletown" },
-  { name: "Christ Our Hope Presbyterian Church", pastor: "Tony Phelps", city: "Charlestown", denomination: "Presbyterian", lat: 41.441517, lng: -71.6319539, episode: "https://clergyquerypod.squarespace.com/episodes/tony-phelps-christ-our-hope-presbyterian-church-charlestown" },
-  { name: "Graceway Church", pastor: "Adam Fagan-Kela", city: "Middletown", denomination: "Non-Denominational", lat: 41.5272358, lng: -71.2874054, episode: "https://clergyquerypod.squarespace.com/episodes/adam-fagan-kela-graceway-church-middletown" },
-  { name: "Redemption City Church", pastor: "Keith Cabral", city: "Pawtucket", denomination: "Non-Denominational", lat: 41.8785521, lng: -71.3853135, episode: "https://clergyquerypod.squarespace.com/episodes/keith-cabral-redemption-city-church-pawtucket" },
-  { name: "Quidnessett Baptist Church", pastor: "Jim Sole", city: "North Kingstown", denomination: "Baptist", lat: 41.6247886, lng: -71.4597865, episode: "https://clergyquerypod.squarespace.com/episodes/jim-sole-quidnessett-baptist-church-north-kingston" },
-  { name: "Revive New England", pastor: "Greg Johnson", city: "Providence", denomination: "Non-Denominational", lat: 41.8240, lng: -71.4128, episode: "https://clergyquerypod.squarespace.com/episodes/greg-johnson-revive-new-england" },
-  { name: "SS. John and James Church", pastor: "Fr. Nicholas Fleming", city: "West Warwick", denomination: "Roman Catholic", lat: 41.7033106, lng: -71.5250394, episode: "https://clergyquerypod.squarespace.com/episodes/nicholas-fleming-ss-john-and-james-church-west-warwick" },
-  { name: "Sanctuary Church", pastor: "Andrew Mook", city: "Providence", denomination: "Non-Denominational", lat: 41.8295246, lng: -71.4168633, episode: "https://clergyquerypod.squarespace.com/episodes/andrew-mook-sanctuary-church-providence" },
-  { name: "St. Philip Church", pastor: "Fr. Michael Najim", city: "Smithfield", denomination: "Catholic", lat: 41.873398, lng: -71.559435, episode: "https://clergyquerypod.squarespace.com/episodes/fr-michael-najim-st-philip-church-smithfield" },
-  { name: "St. Paul the Apostle Church", pastor: "Fr. Bernard Doré", city: "Foster", denomination: "Catholic", lat: 41.815554604716645, lng: -71.73810809153223, episode: "https://clergyquerypod.squarespace.com/episodes/h4pvhf3cn4mnm6m0ns4xrc6cr6ejbg" },
-  { name: "Line Baptist Church", pastor: "David Harden", city: "Foster", denomination: "Baptist", lat: 41.7709878, lng: -71.789886, episode: "https://clergyquerypod.squarespace.com/episodes/fgpuvzdyh9wptvs2pulgp570cx3je5" },
-  { name: "Stony Lane Church", pastor: "Rick Bringhurst", city: "North Kingstown", denomination: "Non-Denominational", lat: 41.592317, lng: -71.491612, episode: "https://clergyquerypod.squarespace.com/episodes/rick-bringhurst-stony-lane-church-a-city-on-a-hill" },
-  { name: "New Life Assembly", pastor: "Keith McNamar", city: "Wakefield", denomination: "Assemblies of God", lat: 41.4304152, lng: -71.5180177, episode: "https://clergyquerypod.squarespace.com/episodes/keith-mcnamar-new-life-assembly-wakefield" },
-  { name: "Church Beyond the Walls", pastor: "Dr. Linda Forsberg", city: "Providence", denomination: "Non-Denominational", lat: 41.8314764, lng: -71.4104157, episode: "https://clergyquerypod.squarespace.com/episodes/dr-linda-forsberg-church-beyond-the-walls-providence" },
-  { name: "King's Grant Fellowship", pastor: "Daniel Murphy", city: "Portsmouth", denomination: "Assemblies of God", lat: 41.5911349, lng: -71.2647945, episode: "https://clergyquerypod.squarespace.com/episodes/daniel-murphy-kings-grant-fellowship" }
+  { name: "Summit Baptist Church", pastor: "Tyler Brock", city: "Coventry", denomination: "Baptist", lat: 41.6957907, lng: -71.6929298, episode: "https://clergyquerypod.squarespace.com/episodes/tyler-brock-summit-baptist-church-coventry", photo: "" },
+  { name: "First Baptist Church of East Greenwich", pastor: "Paul Rollins", city: "East Greenwich", denomination: "Baptist", lat: 41.6626094, lng: -71.4508835, episode: "https://clergyquerypod.squarespace.com/episodes/episode-1-podcast-w-aaron", photo: "" },
+  { name: "Hope Church", pastor: "Rick Moore & Justin Duwiot", city: "Cranston", denomination: "Non-Denominational", lat: 41.7803028, lng: -71.5144357, episode: "https://clergyquerypod.squarespace.com/episodes/5ll0m8ts0b9aiv7ujpxdubtfllo17a", photo: "" },
+  { name: "First Presbyterian Church", pastor: "Sean Bland", city: "Newport", denomination: "Presbyterian", lat: 41.4940519, lng: -71.3086333, episode: "https://clergyquerypod.squarespace.com/episodes/sean-bland-first-presbyterian-church-newport", photo: "" },
+  { name: "House of Praise and Prayer Worship Center", pastor: "Denetra Platts", city: "Middletown", denomination: "Pentecostal", lat: 41.5140, lng: -71.2973, episode: "https://clergyquerypod.squarespace.com/episodes/denetra-platts-house-of-praise-and-prayer-worship-center-middletown", photo: "" },
+  { name: "Christ Our Hope Presbyterian Church", pastor: "Tony Phelps", city: "Charlestown", denomination: "Presbyterian", lat: 41.441517, lng: -71.6319539, episode: "https://clergyquerypod.squarespace.com/episodes/tony-phelps-christ-our-hope-presbyterian-church-charlestown", photo: "" },
+  { name: "Graceway Church", pastor: "Adam Fagan-Kela", city: "Middletown", denomination: "Non-Denominational", lat: 41.5272358, lng: -71.2874054, episode: "https://clergyquerypod.squarespace.com/episodes/adam-fagan-kela-graceway-church-middletown", photo: "" },
+  { name: "Redemption City Church", pastor: "Keith Cabral", city: "Pawtucket", denomination: "Non-Denominational", lat: 41.8785521, lng: -71.3853135, episode: "https://clergyquerypod.squarespace.com/episodes/keith-cabral-redemption-city-church-pawtucket", photo: "" },
+  { name: "Quidnessett Baptist Church", pastor: "Jim Sole", city: "North Kingstown", denomination: "Baptist", lat: 41.6247886, lng: -71.4597865, episode: "https://clergyquerypod.squarespace.com/episodes/jim-sole-quidnessett-baptist-church-north-kingston", photo: "" },
+  { name: "Revive New England", pastor: "Greg Johnson", city: "Providence", denomination: "Non-Denominational", lat: 41.8240, lng: -71.4128, episode: "https://clergyquerypod.squarespace.com/episodes/greg-johnson-revive-new-england", photo: "" },
+  { name: "SS. John and James Church", pastor: "Fr. Nicholas Fleming", city: "West Warwick", denomination: "Roman Catholic", lat: 41.7033106, lng: -71.5250394, episode: "https://clergyquerypod.squarespace.com/episodes/nicholas-fleming-ss-john-and-james-church-west-warwick", photo: "" },
+  { name: "Sanctuary Church", pastor: "Andrew Mook", city: "Providence", denomination: "Non-Denominational", lat: 41.8295246, lng: -71.4168633, episode: "https://clergyquerypod.squarespace.com/episodes/andrew-mook-sanctuary-church-providence", photo: "" },
+  { name: "St. Philip Church", pastor: "Fr. Michael Najim", city: "Smithfield", denomination: "Catholic", lat: 41.873398, lng: -71.559435, episode: "https://clergyquerypod.squarespace.com/episodes/fr-michael-najim-st-philip-church-smithfield", photo: "" },
+  { name: "St. Paul the Apostle Church", pastor: "Fr. Bernard Doré", city: "Foster", denomination: "Catholic", lat: 41.815554604716645, lng: -71.73810809153223, episode: "https://clergyquerypod.squarespace.com/episodes/h4pvhf3cn4mnm6m0ns4xrc6cr6ejbg", photo: "" },
+  { name: "Line Baptist Church", pastor: "David Harden", city: "Foster", denomination: "Baptist", lat: 41.7709878, lng: -71.789886, episode: "https://clergyquerypod.squarespace.com/episodes/fgpuvzdyh9wptvs2pulgp570cx3je5", photo: "" },
+  { name: "Stony Lane Church", pastor: "Rick Bringhurst", city: "North Kingstown", denomination: "Non-Denominational", lat: 41.592317, lng: -71.491612, episode: "https://clergyquerypod.squarespace.com/episodes/rick-bringhurst-stony-lane-church-a-city-on-a-hill", photo: "" },
+  { name: "New Life Assembly", pastor: "Keith McNamar", city: "Wakefield", denomination: "Assemblies of God", lat: 41.4304152, lng: -71.5180177, episode: "https://clergyquerypod.squarespace.com/episodes/keith-mcnamar-new-life-assembly-wakefield", photo: "" },
+  { name: "Church Beyond the Walls", pastor: "Dr. Linda Forsberg", city: "Providence", denomination: "Non-Denominational", lat: 41.8314764, lng: -71.4104157, episode: "https://clergyquerypod.squarespace.com/episodes/dr-linda-forsberg-church-beyond-the-walls-providence", photo: "" },
+  { name: "King's Grant Fellowship", pastor: "Daniel Murphy", city: "Portsmouth", denomination: "Assemblies of God", lat: 41.5911349, lng: -71.2647945, episode: "https://clergyquerypod.squarespace.com/episodes/daniel-murphy-kings-grant-fellowship", photo: "" }
 ];
 
 // ─── MAP SETUP ─────────────────────────────────────────────────────────────────
@@ -364,6 +378,10 @@ function createIcon() {
 }
 
 function buildPopup(c) {
+  const photoHtml = c.photo
+    ? `<img class="popup-photo" src="${c.photo}" alt="${c.pastor}" />`
+    : `<div class="popup-photo-placeholder">⛪</div>`;
+
   const episodeBtn = c.episode
     ? `<a class="popup-link" href="${c.episode}" target="_blank">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
@@ -372,8 +390,8 @@ function buildPopup(c) {
     : `<span class="popup-link-placeholder">Episode coming soon</span>`;
 
   return `
+    ${photoHtml}
     <div class="popup-inner">
-      <div class="popup-denomination">${c.denomination}</div>
       <div class="popup-church">${c.name}</div>
       <div class="popup-pastor">with <span>${c.pastor}</span></div>
       <div class="popup-city">
